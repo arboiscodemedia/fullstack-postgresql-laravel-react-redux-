@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  
+  postgres-db:
+      container_name: postgres-db
+      image: 'postgres:latest'
+      environment:
+        POSTGRES_DB: mydb
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: postGpass2023
+      volumes:
+        - db_data:/var/lib/postgresql/data
+      ports:
+        - "5432:5432"
+      networks:
+        - netcon
+      restart: unless-stopped  
+
+  php-app:
+      build: ./api
+      image: 8.1-fpm
+      container_name: php-app
+      ports:
+        - "8000:8000"
+      volumes:
+        - ./api:/var/www/html  
+        - ./php/local.ini:/usr/local/etc/php/conf.d/local.ini 
+      depends_on:
+        - postgres-db
+      networks:
+        - netcon
+      restart: unless-stopped  
+      command:
+        sh -c "php artisan migrate && php artisan serve --host=0.0.0.0"
+  
+  web-app:
+      build: ./app
+      container_name: web-app
+      stdin_open: true
+      tty: true
+      ports:
+        - "3000:3000"
+      volumes:
+        - ./app:/app
+        - /app/node_modules
+      depends_on:
+        - postgres-db 
+        - php-app
+      networks:
+        - netcon
+      restart: on-failure   
+
+
+
+volumes:
+  db_data:
+    driver: local
+
+networks:
+  netcon:
+    driver: bridge    
